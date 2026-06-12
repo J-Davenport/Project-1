@@ -1,0 +1,34 @@
+---
+title: "Project 1"
+author: "Jon Davenport"
+format: html
+editor: visual
+---
+
+## Pulling census data
+```{r}
+library(httr)
+library(tidyverse)
+#loading census data from 2022 
+Census_data <- GET("https://api.census.gov/data", year,"/acs/acs5/pums?get=SEX,PWGTP,MAR&for=state:1&SCHL=24&key=1981482f26afb4262ffa0044e22666650ddaa81c")
+str(Census_data)
+
+#bringing in the jsonlite package to parse
+library(jsonlite)
+parsed <- fromJSON(rawToChar(Census_data$content))
+str(parsed)
+
+data <- as_tibble(parsed[-1, ], .name_repair = "minimal")
+colnames(data) <- parsed[1, ]
+
+data <- data %>%
+  mutate(across(everything(), as.numeric))
+
+data
+
+
+  
+
+
+```
+
