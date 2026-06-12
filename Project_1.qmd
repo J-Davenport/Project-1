@@ -26,4 +26,3 @@ Name_census <- Name_census %>%
 
 
 
-
