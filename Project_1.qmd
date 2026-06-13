@@ -7,15 +7,17 @@ editor: visual
 
 ## Pulling census data
 ```{r}
-library(httr)
-library(tidyverse)
+library(httr) 
+library(tidyverse) 
 #loading census data from 2022 
-Census_data <- GET("https://api.census.gov/data/2022/acs/acs5/pums?get=SEX,PWGTP,MAR,SCHL,AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP&for=state:1&SCHL=24&key=1981482f26afb4262ffa0044e22666650ddaa81c")
+Census_data <- GET("https://api.census.gov/data/2022/acs/acs5/pums?get=SEX,PWGTP,MAR,SCHL,AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP&for=state:1&key=1981482f26afb4262ffa0044e22666650ddaa81c") 
+
 str(Census_data)
 
-#bringing in the jsonlite package to parse
-library(jsonlite)
-parsed <- fromJSON(rawToChar(Census_data$content))
+#bringing in the jsonlite package to parse 
+
+library(jsonlite) 
+parsed <- fromJSON(rawToChar(Census_data$content)) 
 str(parsed)
 
 Name_census <- as_tibble(parsed[-1, ], .name_repair = "minimal")
@@ -24,5 +26,8 @@ colnames(Name_census) <- parsed[1, ]
 Name_census <- Name_census %>% 
   mutate(across(everything(), as.numeric))
 
+Name_census
 
+
+```
 
