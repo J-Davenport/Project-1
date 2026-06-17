@@ -9,12 +9,23 @@ editor: visual
 ```{r}
 library(httr) 
 library(tidyverse) 
-#loading census data from 2022 
-Census_data <- GET("https://api.census.gov/data/2022/acs/acs5/pums?get=SEX,PWGTP,MAR,SCHL,AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,FER,HHL,SCH&for=state:1&key=1981482f26afb4262ffa0044e22666650ddaa81c")
-
+#loading census data from south over years 2018-2022 - this is not needed with the year variable being created below
+Census_data <- GET("https://api.census.gov/data/2022/acs/acs5/pums?get=SEX,PWGTP,MAR,SCHL,AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,FER,HHL,SCH&for=state:01,05,12,13,21,22,28,37,45,47,51&key=1981482f26afb4262ffa0044e22666650ddaa81c")
 str(Census_data)
 
+#creating year variable
+get_census_data <- function(year = 2022) {
+  site <- paste0("https://api.census.gov/data/", year, 
+                "/acs/acs5/pums?get=SEX,PWGTP,MAR,SCHL,AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,FER,HHL,SCH&for=state:01,05,12,13,21,22,28,37,45,47,51&key=1981482f26afb4262ffa0044e22666650ddaa81c")
+  GET(site)
+}
+
+Census_data <-get_census_data()
 #bringing in the jsonlite package to parse 
+
+status_code(Census_data)
+content(Census_data, "text")
+cat(rawToChar(Census_data$content))
 
 library(jsonlite) 
 parsed <- fromJSON(rawToChar(Census_data$content)) 
@@ -22,6 +33,14 @@ str(parsed)
 
 Name_census <- as_tibble(parsed[-1, ], .name_repair = "minimal")
 colnames(Name_census) <- parsed[1, ]
+Name_census <- Name_census %>%
+  mutate(across(everything(), as.numeric)) %>%
+  mutate(across(c(FER, HHL, SCH, SCHL, SEX), as.factor))
+
+class(Name_census) <- c("census", class(Name_census))
+
+
+
 Name_census
 
 
@@ -29,14 +48,145 @@ Name_census_Sub <- Name_census %>%
   mutate(across(everything(), as.numeric)) %>%
    mutate(across(c(FER, HHL, SCH, SCHL, SEX), as.factor)) %>%
   mutate(year = 2022) |>
-  mutate(JWAP = mean(JWAP, na.rm = TRUE))%>%
-  mutate(JWDP = mean(JWDP, na.rm = TRUE))%>%
+  mutate(JWAP = (JWAP - 1) * 5 + 2.5) %>%
+  mutate(JWDP = (JWDP - 1) * 5 + 2.5) %>%
    filter(FER == 1)%>%
   select(PWGTP, AGEP) 
  
-
 Name_census_Sub
 
+#code to pull by year
+data_2018 <- get_census_data(2018) 
+data_2019 <- get_census_data(2019) 
+data_2021 <- get_census_data(2021) 
+data_2022 <- get_census_data(2022) 
+
+
+
+#creating class variable in tibble
+class(Name_census) <- c("census", class(Name_census))
+
+summary.census <- function(x, 
+                           numeric_vars = c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP"),
+                           cat_vars = c("FER", "HHL", "SCH", "SCHL", "SEX")) {
+  
+  cat("AGEP - mean:", mean(x$AGEP, na.rm = TRUE), " sd:", sd(x$AGEP, na.rm = TRUE), "\n")
+  cat("GASP - mean:", mean(x$GASP, na.rm = TRUE), " sd:", sd(x$GASP, na.rm = TRUE), "\n")
+  cat("GRPIP - mean:", mean(x$GRPIP, na.rm = TRUE), " sd:", sd(x$GRPIP, na.rm = TRUE), "\n")
+  cat("JWAP - mean:", mean(x$JWAP, na.rm = TRUE), " sd:", sd(x$JWAP, na.rm = TRUE), "\n")
+  cat("JWDP - mean:", mean(x$JWDP, na.rm = TRUE), " sd:", sd(x$JWDP, na.rm = TRUE), "\n")
+  cat("JWMNP - mean:", mean(x$JWMNP, na.rm = TRUE), " sd:", sd(x$JWMNP, na.rm = TRUE), "\n")
+  
+  cat("\nFER counts:\n")
+  print(table(x$FER))
+  
+  cat("\nHHL counts:\n")
+  print(table(x$HHL))
+  
+  cat("\nSCH counts:\n")
+  print(table(x$SCH))
+  
+  cat("\nSCHL counts:\n")
+  print(table(x$SCHL))
+  
+  cat("\nSEX counts:\n")
+  print(table(x$SEX))
+}
+
+summary(Name_census)
+
+
+#using if logic and weighted means calculation
+summary.census <- function(x, 
+                           numeric_vars = c("AGEP", "GASP", "GRPIP"),
+                           cat_vars = c("FER", "HHL", "SCH", "SCHL", "SEX")) {
+  
+  results <- list()
+  
+  weight <- x$PWGTP
+  
+  # AGEP
+  if ("AGEP" %in% numeric_vars) {
+    m <- sum(x$AGEP * weight, na.rm = TRUE) / sum(weight, na.rm = TRUE)
+    s <- sqrt(sum(x$AGEP^2 * weight, na.rm = TRUE) / sum(weight, na.rm = TRUE) - m^2)
+    results$AGEP_mean <- m
+    results$AGEP_sd <- s
+  }
+  
+  # GASP
+  if ("GASP" %in% numeric_vars) {
+    m <- sum(x$GASP * weight, na.rm = TRUE) / sum(weight, na.rm = TRUE)
+    s <- sqrt(sum(x$GASP^2 * weight, na.rm = TRUE) / sum(weight, na.rm = TRUE) - m^2)
+    results$GASP_mean <- m
+    results$GASP_sd <- s
+  }
+  
+  # GRPIP
+  if ("GRPIP" %in% numeric_vars) {
+    m <- sum(x$GRPIP * weight, na.rm = TRUE) / sum(weight, na.rm = TRUE)
+    s <- sqrt(sum(x$GRPIP^2 * weight, na.rm = TRUE) / sum(weight, na.rm = TRUE) - m^2)
+    results$GRPIP_mean <- m
+    results$GRPIP_sd <- s
+  }
+  
+  # JWMNP (numeric, not a time-of-day variable, so this one IS summarized)
+  if ("JWMNP" %in% numeric_vars) {
+    m <- sum(x$JWMNP * weight, na.rm = TRUE) / sum(weight, na.rm = TRUE)
+    s <- sqrt(sum(x$JWMNP^2 * weight, na.rm = TRUE) / sum(weight, na.rm = TRUE) - m^2)
+    results$JWMNP_mean <- m
+    results$JWMNP_sd <- s
+  }
+  
+  # FER counts
+  if ("FER" %in% cat_vars) {
+    results$FER_counts <- table(x$FER)
+  }
+  
+  # HHL counts
+  if ("HHL" %in% cat_vars) {
+    results$HHL_counts <- table(x$HHL)
+  }
+  
+  # SCH counts
+  if ("SCH" %in% cat_vars) {
+    results$SCH_counts <- table(x$SCH)
+  }
+  
+  # SCHL counts
+  if ("SCHL" %in% cat_vars) {
+    results$SCHL_counts <- table(x$SCHL)
+  }
+  
+  # SEX counts
+  if ("SEX" %in% cat_vars) {
+    results$SEX_counts <- table(x$SEX)
+  }
+  
+  results
+}
+
+out <- summary(Name_census)
+out
+
+
+
+plot.census <-function(x, numeric_var, cat_var) {
+  ggplot(x, aes(x = .data[[cat_var]], y = .data[[numeric_var]], weight = PWGTP)) +
+    geom_boxplot() +
+    labs(x = cat_var, y = numeric_var, 
+         title = paste(numeric_var, "by", cat_var))
+}
+
+plot(Name_census, numeric_var = "AGEP", cat_var = "SEX")
+
+test_data <- Name_census %>% sample_n(500)
+class(test_data) <- c("census", class(test_data))
+plot(test_data, numeric_var = "AGEP", cat_var = "SEX")
+
+
+class(Name_census$SEX)
+summary(Name_census$AGEP)
+sort(unique(Name_census$AGEP), decreasing = TRUE)[1:20]
 
 ```
 
