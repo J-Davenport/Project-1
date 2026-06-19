@@ -36,10 +36,10 @@ Name_census <- Name_census %>%
   mutate(across(everything(), as.numeric)) %>%
   mutate(across(c(FER, HHL, SCH, SCHL, SEX), as.factor))
 
+#creating class variable in tibble
 class(Name_census) <- c("census", class(Name_census))
 
-
-
+#checking the name census tibble
 Name_census
 
 
@@ -55,15 +55,14 @@ Name_census_Sub <- Name_census %>%
 Name_census_Sub
 
 #code to pull by year
-data_2018 <- get_census_data(2018) 
-data_2019 <- get_census_data(2019) 
-data_2021 <- get_census_data(2021) 
-data_2022 <- get_census_data(2022) 
+#data_2018 <- get_census_data(2018) 
+#data_2019 <- get_census_data(2019) 
+#data_2021 <- get_census_data(2021) 
+#data_2022 <- get_census_data(2022) 
 
 
 
-#creating class variable in tibble
-class(Name_census) <- c("census", class(Name_census))
+
 
 summary.census <- function(x, 
                            numeric_vars = c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP"),
@@ -176,7 +175,7 @@ plot.census <-function(x, numeric_var, cat_var) {
          title = paste(numeric_var, "by", cat_var))
 }
 
-plot(Name_census, numeric_var = "AGEP", cat_var = "SEX")
+#plot(Name_census, numeric_var = "AGEP", cat_var = "SEX")
 
 test_data <- Name_census %>% sample_n(500)
 class(test_data) <- c("census", class(test_data))
