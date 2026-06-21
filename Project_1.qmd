@@ -34,7 +34,7 @@ Name_census <- as_tibble(parsed[-1, ], .name_repair = "minimal")
 colnames(Name_census) <- parsed[1, ]
 Name_census <- Name_census %>%
   mutate(across(everything(), as.numeric)) %>%
-  mutate(across(c(FER, HHL, SCH, SCHL, SEX), as.factor))
+  mutate(across(c(FER, HHL, SCH, SCHL, SEX, MAR), as.factor))
 
 #creating class variable in tibble
 class(Name_census) <- c("census", class(Name_census))
@@ -45,7 +45,7 @@ Name_census
 
 Name_census_Sub <- Name_census %>% 
   mutate(across(everything(), as.numeric)) %>%
-   mutate(across(c(FER, HHL, SCH, SCHL, SEX), as.factor)) %>%
+   mutate(across(c(FER, HHL, SCH, SCHL, SEX, MAR), as.factor)) %>%
   mutate(year = 2022) |>
   mutate(JWAP = (JWAP - 1) * 5 + 2.5) %>%
   mutate(JWDP = (JWDP - 1) * 5 + 2.5) %>%
@@ -66,7 +66,7 @@ Name_census_Sub
 
 summary.census <- function(x, 
                            numeric_vars = c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP"),
-                           cat_vars = c("FER", "HHL", "SCH", "SCHL", "SEX")) {
+                           cat_vars = c("FER", "HHL", "SCH", "SCHL", "SEX", "MAR")) {
   
   cat("AGEP - mean:", mean(x$AGEP, na.rm = TRUE), " sd:", sd(x$AGEP, na.rm = TRUE), "\n")
   cat("GASP - mean:", mean(x$GASP, na.rm = TRUE), " sd:", sd(x$GASP, na.rm = TRUE), "\n")
@@ -182,9 +182,21 @@ class(test_data) <- c("census", class(test_data))
 plot(test_data, numeric_var = "AGEP", cat_var = "SEX")
 
 
-class(Name_census$SEX)
-summary(Name_census$AGEP)
-sort(unique(Name_census$AGEP), decreasing = TRUE)[1:20]
+
+#testing for relationships between age and level of school attainment for NC
+
+#filtering Name_census to NC only which is state 37
+nc_data <- Name_census %>%
+  filter(state == 37)
+
+#assign census class for NC data
+class(nc_data) <- c("census", class(nc_data))
+
+#summarizing the numeric variable, Age, by categorical variable, Marital status
+summary(nc_data, numeric_vars = "AGEP", cat_vars = "MAR")
+
+#plotting the two variables of interest, AGEP by MAR
+plot(nc_data, numeric_var = "AGEP", cat_var = "MAR")
 
 ```
 
