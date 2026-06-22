@@ -5,96 +5,67 @@ format: html
 editor: visual
 ---
 
-## Pulling census data
+## Census Data Project 1
+
 ```{r}
+#loading packages that will be needed for the project
 library(httr) 
 library(tidyverse) 
-#loading census data from south over years 2018-2022 - this is not needed with the year variable being created below
-Census_data <- GET("https://api.census.gov/data/2022/acs/acs5/pums?get=SEX,PWGTP,MAR,SCHL,AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,FER,HHL,SCH&for=state:01,05,12,13,21,22,28,37,45,47,51&key=1981482f26afb4262ffa0044e22666650ddaa81c")
-str(Census_data)
-
-#creating year variable
+#loading census data from only states in the Southeast using the numbers of each state. Also creating year variable to cover years 2018-2022 - this is will allow me to pull years later
 get_census_data <- function(year = 2022) {
   site <- paste0("https://api.census.gov/data/", year, 
                 "/acs/acs5/pums?get=SEX,PWGTP,MAR,SCHL,AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,FER,HHL,SCH&for=state:01,05,12,13,21,22,28,37,45,47,51&key=1981482f26afb4262ffa0044e22666650ddaa81c")
   GET(site)
 }
 
+#creating object with census data and checking the file structure
 Census_data <-get_census_data()
-# checks but don't run
+str(Census_data)
+#additional checks but don't run because it takes WAY too long so
 #content(Census_data, "text")
 #cat(rawToChar(Census_data$content))
 
-#bringing in the jsonlite package to parse 
+#bringing in the jsonlite package to parse the API call data 
 library(jsonlite) 
 parsed <- fromJSON(rawToChar(Census_data$content)) 
 str(parsed)
 
+#creating a tibble based on the parsed data while also taking column names. Mutating to make everything numeric except for the categorical variables listed on PUMS data dictionary
 Name_census <- as_tibble(parsed[-1, ], .name_repair = "minimal")
 colnames(Name_census) <- parsed[1, ]
 Name_census <- Name_census %>%
   mutate(across(everything(), as.numeric)) %>%
   mutate(across(c(FER, HHL, SCH, SCHL, SEX, MAR), as.factor))
 
-#creating class variable in tibble
+#creating class variable in new tibble
 class(Name_census) <- c("census", class(Name_census))
 
-#checking the name census tibble
+#checking the name census tibble to make sure everything makes sense
 Name_census
 
+#creating a function that mutates the data in a similar fashion initially to the main census tibble, But this one differs by mutating the time interval data to work and back and to those that have recently had children. It then selects the 2 columns of weight and age data to present
+Name_census_Sub <- function(Name_census) {
+  Name_census %>%
+    mutate(across(c(FER, HHL, SCH, SCHL, SEX, MAR), as.factor)) %>%
+    mutate(year = 2022) %>%
+    mutate(JWAP = (JWAP - 1) * 5 + 2.5) %>%
+    mutate(JWDP = (JWDP - 1) * 5 + 2.5) %>%
+    filter(FER == 1) %>%
+    select(PWGTP, AGEP)
+}
 
-Name_census_Sub <- Name_census %>% 
-  mutate(across(everything(), as.numeric)) %>%
-   mutate(across(c(FER, HHL, SCH, SCHL, SEX, MAR), as.factor)) %>%
-  mutate(year = 2022) |>
-  mutate(JWAP = (JWAP - 1) * 5 + 2.5) %>%
-  mutate(JWDP = (JWDP - 1) * 5 + 2.5) %>%
-   filter(FER == 1)%>%
-  select(PWGTP, AGEP) 
- 
-Name_census_Sub
+#checking the subset data 
+Name_census_Sub(Name_census)
 
-#code to pull by year
+#code to pull by year so creating an object first for each year. Keeping them as comments because this takes a long time to run unless specifically needed. 
 #data_2018 <- get_census_data(2018) 
 #data_2019 <- get_census_data(2019) 
 #data_2021 <- get_census_data(2021) 
 #data_2022 <- get_census_data(2022) 
 
 
+#creating a new function that can specify years of data and use the weighted means by number of persons calculation for each of the 3 numeric variables - Age, Gas Cost, Rent as part of Income Cost. Also returning tables with counts for each of the categorical varibles involving fertility, sex, and schooling.
 
-
-
-summary.census <- function(x, 
-                           numeric_vars = c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP"),
-                           cat_vars = c("FER", "HHL", "SCH", "SCHL", "SEX", "MAR")) {
-  
-  cat("AGEP - mean:", mean(x$AGEP, na.rm = TRUE), " sd:", sd(x$AGEP, na.rm = TRUE), "\n")
-  cat("GASP - mean:", mean(x$GASP, na.rm = TRUE), " sd:", sd(x$GASP, na.rm = TRUE), "\n")
-  cat("GRPIP - mean:", mean(x$GRPIP, na.rm = TRUE), " sd:", sd(x$GRPIP, na.rm = TRUE), "\n")
-  cat("JWAP - mean:", mean(x$JWAP, na.rm = TRUE), " sd:", sd(x$JWAP, na.rm = TRUE), "\n")
-  cat("JWDP - mean:", mean(x$JWDP, na.rm = TRUE), " sd:", sd(x$JWDP, na.rm = TRUE), "\n")
-  cat("JWMNP - mean:", mean(x$JWMNP, na.rm = TRUE), " sd:", sd(x$JWMNP, na.rm = TRUE), "\n")
-  
-  cat("\nFER counts:\n")
-  print(table(x$FER))
-  
-  cat("\nHHL counts:\n")
-  print(table(x$HHL))
-  
-  cat("\nSCH counts:\n")
-  print(table(x$SCH))
-  
-  cat("\nSCHL counts:\n")
-  print(table(x$SCHL))
-  
-  cat("\nSEX counts:\n")
-  print(table(x$SEX))
-}
-
-summary(Name_census)
-
-
-#using if logic and weighted means calculation
 summary.census <- function(x, 
                            numeric_vars = c("AGEP", "GASP", "GRPIP"),
                            cat_vars = c("FER", "HHL", "SCH", "SCHL", "SEX")) {
@@ -163,11 +134,11 @@ summary.census <- function(x,
   results
 }
 
-out <- summary(Name_census)
-out
+#checking new census summary file
+summary(Name_census)
 
 
-
+#plot code to see how census data looks after running the previous function
 plot.census <-function(x, numeric_var, cat_var) {
   ggplot(x, aes(x = .data[[cat_var]], y = .data[[numeric_var]], weight = PWGTP)) +
     geom_boxplot() +
@@ -175,15 +146,17 @@ plot.census <-function(x, numeric_var, cat_var) {
          title = paste(numeric_var, "by", cat_var))
 }
 
+#below is the code to print the plot. This code takes forever because it is pulling all Southeast states and looks WAY to busy for easy comprehension. 
 #plot(Name_census, numeric_var = "AGEP", cat_var = "SEX")
 
+#test plot code to ensure that everything is plotting nicely. This code only plots 500 datapoints for simplicity
 test_data <- Name_census %>% sample_n(500)
 class(test_data) <- c("census", class(test_data))
 plot(test_data, numeric_var = "AGEP", cat_var = "SEX")
 
 
 
-#testing for relationships between age and level of school attainment for NC
+#testing for relationships between age and marital status for only NC residents
 
 #filtering Name_census to NC only which is state 37
 nc_data <- Name_census %>%
@@ -197,6 +170,6 @@ summary(nc_data, numeric_vars = "AGEP", cat_vars = "MAR")
 
 #plotting the two variables of interest, AGEP by MAR
 plot(nc_data, numeric_var = "AGEP", cat_var = "MAR")
+#Looks like the median age for widowed is the highest around 75 which makes sense. Divorced, Separated, and Married all have medians around low to mid 50s. Lowest median is for those that never married which is around 20 with a lot of variation
 
 ```
-
